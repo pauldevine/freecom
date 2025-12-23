@@ -130,6 +130,21 @@ int stack_check(const char *commandline)
   return 0;
 }
 
+#ifdef DEBUG
+#define TRACE_PREFIX "FreeCOM dbg: "
+#else
+#define TRACE_PREFIX "FreeCOM: "
+#endif
+
+
+static void startup_trace(const char *msg)
+{
+  fputs(TRACE_PREFIX, stdout);
+  fputs(msg, stdout);
+  fputs("\r\n", stdout);
+  fflush(stdout);
+}
+
 #ifdef __GNUC__
 int dup(int fd)
 {
@@ -949,10 +964,25 @@ int main(void)
    * * main function
    */
 
+  int init_result;
+
   stack_check_init();
 
-  if(setjmp(jmp_beginning) == 0 && initialize() == E_None)
-    process_input(0, 0);
+  startup_trace("main entry");
+
+  if(setjmp(jmp_beginning) == 0) {
+    startup_trace("calling initialize()");
+    init_result = initialize();
+    printf(TRACE_PREFIX "initialize() returned %d\r\n", init_result);
+    fflush(stdout);
+
+    if(init_result == E_None) {
+      startup_trace("entering process_input()");
+      process_input(0, 0);
+    }
+  } else {
+    startup_trace("returned via longjmp() to main");
+  }
 
   if(!canexit)
     hangForever();
