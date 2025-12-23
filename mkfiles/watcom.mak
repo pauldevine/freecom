@@ -28,7 +28,7 @@ CFLAGS1 = -os-s-wx
 !ifeq UTILS_BUILD 1
 .c.exe:
 ! ifdef __LINUX__
-  $(CL386) -I$(WATCOM)$(DIRSEP)lh $< -fm -fe=$@ -I..$(DIRSEP)suppl
+  cc -O2 -g -Wall -Wno-pragma-pack -D__LINUX__ -I..$(DIRSEP)suppl $< -o $@
 ! else ifdef __MSDOS__
 !  ifeq COMPACT_MODEL 1
   $(CL) -mc -I$(WATCOM)$(DIRSEP)h $< -fm -fe=$@ -I..$(DIRSEP)suppl

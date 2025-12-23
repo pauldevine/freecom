@@ -7,7 +7,8 @@ ECHOLIB = echo >>
 ECHOLIBDEP =
 RMFILES = rm -f
 CP = cp
-LIBC = -li86
+# LIBC = -li86  # Not needed - SUPPL provides far memory functions
+LIBC =
 NASMFLAGS := $(NASMFLAGS) -felf
 SHELL_MMODEL_COMP = cmodel=small
 INCLUDEPATH = -I. -I../compat -I../suppl/compat
