@@ -12,9 +12,7 @@
 
 #include "suppl.h"
 #include "portable.h"
-#if defined(_TC_EARLY_)
-# include "fmemory.h"
-#endif
+#include "fmemory.h"   /* for _fmemcpy */
 
 #define BUFFER_SIZE 10*1024
 const char id[] = "INSTALLABLE COMMAND - ICD v1.0";
