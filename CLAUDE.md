@@ -136,7 +136,46 @@ The `build_stage1_disk.sh` script automatically copies `~/projects/freecom/comma
 1. **ES corruption**: DOS INT 21h corrupts ES - save to memory before hardware access
 2. **8088 limits**: No immediate shifts >1 (use `shr al,1` 4x or `mov cl,4; shr al,cl`)
 3. **Stack fragility**: Avoid push/pop in interrupt handlers, use memory variables instead
+4. **Avoid 32-bit library calls**: GCC's 32-bit arithmetic functions (`__mulsi3`, `__udivsi3`, `__lshrsi3`) crash due to FAR/NEAR calling convention mismatches. See workarounds below.
+
+### Avoiding 32-bit Library Functions (CRITICAL)
+
+GCC generates calls to library functions for 32-bit operations that the 8088 can't do natively. These functions have FAR/NEAR calling convention issues that corrupt memory on Victor 9000.
+
+**Problem operations and workarounds:**
+
+```c
+// AVOID: 32-bit multiplication - calls __mulsi3
+unsigned long result = (unsigned long)a * b * c;
+
+// WORKAROUND: Use stepped 16-bit multiplication
+#ifdef __GNUC__
+  unsigned long temp = (unsigned long)a * (unsigned long)b;  // 16x16->32 is native
+  if (temp <= 0xFFFFul) {
+    result = (unsigned long)(unsigned)temp * (unsigned long)c;  // 16x16->32
+  }
+#endif
+
+// AVOID: 32-bit division - calls __udivsi3
+unsigned long result = big_value / divisor;
+
+// WORKAROUND: Use 16-bit if values fit, or use shift operations for powers of 2
+```
+
+**Fixed in this codebase:**
+- `cmd/dir.c` - Free space calculation now uses stepped 16-bit multiplication
 
 ### Current Status
 
-The kernel boots and executes COMMAND.COM. Keyboard input is not yet functional (INT 16h polling not implemented), so the shell exits immediately after loading.
+The kernel boots and executes COMMAND.COM successfully. **Keyboard input works** (polling-based INT 16h). Users can type commands and execute them interactively.
+
+**Working:**
+- Shell startup and initialization
+- Command input and execution
+- DIR command (including floppy drives)
+- Basic DOS commands (VER, TYPE, etc.)
+- Hard disk access (SASI)
+- Floppy disk access (GCR)
+
+**Known Issues:**
+- TYPE on floppy may show "write-protection violation" error (floppy driver issue, not FreeCOM)
