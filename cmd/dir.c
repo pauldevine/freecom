@@ -806,7 +806,40 @@ static int dir_print_free(unsigned long dirs)
   r.r_ax = 0x3600;
   r.r_dx = toupper(*path) - 'A' + 1;
   intrpt(0x21, &r);
+#ifdef __GNUC__
+  /* VICTOR9000 FIX: Avoid 32-bit multiplication which calls __mulsi3.
+   * GCC's 32-bit library functions crash on Victor 9000 due to FAR/NEAR
+   * calling convention mismatch. Use stepped 16-bit multiplication instead.
+   * Values: r_ax=sectors/cluster, r_bx=free clusters, r_cx=bytes/sector */
+  {
+    unsigned long freebytes;
+    unsigned spc = (unsigned)r.r_ax;   /* sectors per cluster (small, 1-64) */
+    unsigned avail = (unsigned)r.r_bx; /* available clusters */
+    unsigned bps = (unsigned)r.r_cx;   /* bytes per sector (typically 512) */
+
+    /* Step 1: cluster_size = spc * bps (both small, 16x16->32 is native) */
+    unsigned long cluster_size = (unsigned long)spc * (unsigned long)bps;
+
+    /* Step 2: freebytes = cluster_size * avail
+     * To avoid __mulsi3, manually compute using shifts and adds.
+     * This works because cluster_size is small (max ~32KB) */
+    freebytes = 0;
+    if (cluster_size <= 0xFFFFul) {
+      /* cluster_size fits in 16 bits - use 16x16->32 native multiply */
+      unsigned cs16 = (unsigned)cluster_size;
+      freebytes = (unsigned long)cs16 * (unsigned long)avail;
+    } else {
+      /* Large cluster - manual loop (rare, only for unusual disk formats) */
+      unsigned i;
+      for (i = 0; i < avail && freebytes < 0xFFFF0000ul; i++) {
+        freebytes += cluster_size;
+      }
+    }
+    convert(freebytes, 0, buffer);
+  }
+#else
   convert((unsigned long)r.r_ax * r.r_bx * r.r_cx, 0, buffer);
+#endif
 output:
   displayString(TEXT_DIR_FTR_BYTES_FREE, buffer);
 
