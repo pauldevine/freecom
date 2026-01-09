@@ -137,6 +137,33 @@ int stack_check(const char *commandline)
 #endif
 
 
+#ifdef VICTOR9000
+/* Victor 9000: Use direct INT 21h AH=02 - ia16-gcc libc fputs() is broken */
+static void dos_putchar(char c)
+{
+  __asm__ volatile(
+    "movb $0x02, %%ah\n\t"
+    "int $0x21"
+    : : "d"((unsigned char)c)
+    : "ax"
+  );
+}
+
+static void dos_puts(const char *s)
+{
+  while (*s) {
+    dos_putchar(*s++);
+  }
+}
+
+static void startup_trace(const char *msg)
+{
+  dos_puts(TRACE_PREFIX);
+  dos_puts(msg);
+  dos_putchar('\r');
+  dos_putchar('\n');
+}
+#else
 static void startup_trace(const char *msg)
 {
   fputs(TRACE_PREFIX, stdout);
@@ -144,6 +171,7 @@ static void startup_trace(const char *msg)
   fputs("\r\n", stdout);
   fflush(stdout);
 }
+#endif
 
 #ifdef __GNUC__
 int dup(int fd)

@@ -21,7 +21,7 @@ AR = ia16-elf-ar crsv
 LD = $(CL) $(CFLAGS1) -o command.exe $(OBJ1) $(OBJ2) $(OBJ3) $(OBJ4) command.ld $(LIBS) $(LIBC) -Wl,-Map,command.map
 
 CFG = gcc.cfg
-CFLAGS1 = -Os -Wall -Werror -Wno-pointer-to-int-cast -Wno-incompatible-pointer-types -mregparmcall -fno-builtin -fno-strict-aliasing -Wno-format -mfar-function-if-far-return-type -fno-caller-saves -fno-optimize-sibling-calls -fno-move-loop-invariants -fno-tree-loop-optimize -fno-rerun-cse-after-loop
+CFLAGS1 = -Os -Wall -Werror -Wno-pointer-to-int-cast -Wno-incompatible-pointer-types -mregparmcall -fno-builtin -fno-strict-aliasing -Wno-format -mfar-function-if-far-return-type -fno-caller-saves -fno-optimize-sibling-calls -fno-move-loop-invariants -fno-tree-loop-optimize -fno-rerun-cse-after-loop -DVICTOR9000
 
 #		*Implicit Rules*
 .SUFFIXES:

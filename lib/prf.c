@@ -61,11 +61,17 @@ int puts(const char *s)
 /* special handler to switch between sprintf and printf */
 static void handle_char(int c, FILE *f)
 {
+  /* Newline expands to \r\n (2 chars), so flush BEFORE if needed */
+  int chars_needed = (c == '\n') ? 2 : 1;
+  if (f && (charp - pbuf + chars_needed > 79))
+    flushbuf(f);
+
   if (c == '\n')
     *charp++ = '\r';
   *charp++ = c;
-  /* flush buffer for '\n' or if full */
-  if (f && (charp - pbuf >= 79 || c == '\n'))
+
+  /* Also flush on newline for immediate display */
+  if (f && c == '\n')
     flushbuf(f);
 }
 
