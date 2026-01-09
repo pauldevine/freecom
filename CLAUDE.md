@@ -140,3 +140,43 @@ The `build_stage1_disk.sh` script automatically copies `~/projects/freecom/comma
 ### Current Status
 
 The kernel boots and executes COMMAND.COM. Keyboard input is not yet functional (INT 16h polling not implemented), so the shell exits immediately after loading.
+
+## Agent Delegation
+
+Use specialized agents for tasks requiring deep domain expertise:
+
+### victor9000-engineer
+
+**Invoke for**: Victor 9000 hardware-specific work including:
+
+- Memory-mapped I/O registers and addresses (SASI, CRT, VIA, PIC, PIT)
+- SASI hard disk protocol and DMA operations
+- Video system (HD46505 CRTC, screen RAM format, glyph pointers)
+- 6522 VIA configurations (keyboard, floppy, parallel port)
+- Boot process and ROM behavior
+- Interrupt handling differences from IBM PC
+- GCR floppy format and variable-speed zones
+- Debugging crashes on cold boot vs warm boot
+
+### embedded-systems
+
+**Invoke for**: Low-level 8086/8088 programming tasks including:
+
+- Interrupt handler development (ISR optimization, latency, priority)
+- Memory optimization (code size, RAM usage, segment management)
+- Real-time constraints and timing-critical code
+- Driver development patterns
+- Stack management and register preservation
+- Power management and hardware abstraction
+- Debugging techniques (JTAG equivalent, memory dumps, trace systems)
+
+### When to delegate
+
+| Task                                            | Agent                 |
+|-------------------------------------------------|-----------------------|
+| "Why does this crash on Victor but work on PC?" | `victor9000-engineer` |
+| "How do I read the keyboard VIA?"               | `victor9000-engineer` |
+| "Optimize this interrupt handler"               | `embedded-systems`    |
+| "Reduce code size for small model"              | `embedded-systems`    |
+| "Screen output shows wrong characters"          | `victor9000-engineer` |
+| "Task scheduling or RTOS patterns"              | `embedded-systems`    |
