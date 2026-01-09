@@ -48,8 +48,14 @@
 
 void beep(void)
 {
+#ifdef VICTOR9000
+  /* Victor 9000: No-op - no IBM-compatible speaker or reliable timer.
+     The delay() function can hang if clock driver isn't working. */
+  (void)0;
+#else
   sound(900);
   delay(200); /* 400 */
   nosound();
   delay(100);
+#endif
 }

@@ -24,7 +24,8 @@
 #define HISTORY_DEFAULT_SIZE 256
 
 /* Define to enable filename completion; requires: Enhanced Input */
-#define FEATURE_FILENAME_COMPLETION
+/* DISABLED for Victor 9000 - Tab key crashes due to stack overflow in do_complete() */
+/* #define FEATURE_FILENAME_COMPLETION */
 
 /* Define to enable to load messages into memory */
 #define FEATURE_LOAD_MESSAGES

@@ -17,6 +17,13 @@ static inline void outportb (unsigned short int port, unsigned char value)
 }
 
 /* From LGPL DJGPP libc, Copyright (C) 1995 DJ Delorie */
+/* VICTOR9000: Disabled - Victor has no IBM-compatible speaker hardware.
+   The IBM PC ports 0x43/0x42/0x61 don't exist on Victor 9000 and
+   accessing them crashes MAME (and would crash real hardware). */
+#ifdef VICTOR9000
+static inline void sound(int freq) { (void)freq; }
+static inline void nosound(void) { }
+#else
 static inline void sound(int freq)
 {
 	int scale = 1193046 / freq;
@@ -29,6 +36,7 @@ static inline void nosound(void)
 {
 	outportb(0x61, inportb(0x61) & ~3);
 }
+#endif
 
 union REGPACK {
 	struct {
