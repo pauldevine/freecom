@@ -173,7 +173,7 @@ char temp[1024];
 static const char besFromChar[] =
  "abcdefghijklmnopqrstuvwxyz,.[{}]\\?0";
 static const char besToChar[] =
- "\a\bcd\e\fghijklm\nopq\rs\t\x0\vw\x0yz,.[{}]\\?";
+ "\a\bcd\x1b\fghijklm\nopq\rs\t\x00\vw\x00yz,.[{}]\\?";
 
 symKey symkeys[] = {		/* symbolic keynames, uppercased! */
 	 { KEY_CTL_C,	"BREAK" }		/* Pseudo-^Break */
