@@ -53,12 +53,22 @@ int devopen(char *const fnam, int mode)
 {
   int fd;
 
+  // puts("[d0]");
   isDeviceName(fnam);           /* modify fnam if device */
+  // puts("[d1]");
   fd = -1;
-  if((mode & (O_CREAT|O_TRUNC)) != (O_CREAT|O_TRUNC))
+  if((mode & (O_CREAT|O_TRUNC)) != (O_CREAT|O_TRUNC)) {
+    // puts("[d2]");
     fd = dos_open(fnam, mode & ~(O_APPEND|O_CREAT|O_TRUNC));
-  if(fd == -1 && (mode & O_CREAT))
-    return dos_creat(fnam, 0);
+    // puts("[d3]");
+  }
+  if(fd == -1 && (mode & O_CREAT)) {
+    // puts("[d4]");
+    fd = dos_creat(fnam, 0);
+    // puts("[d5]");
+    return fd;
+  }
+  // puts("[d6]");
   if (mode & O_APPEND)
     lseek(fd, 0, SEEK_END);
   return fd;

@@ -555,7 +555,17 @@ int initialize(void)
 				IREGS r;
 				int key;
 
+				/* Initialize all IREGS fields to avoid garbage causing crashes */
 				r.r_ax = 0x3000;	/* Get DOS version & OEM ID */
+				r.r_bx = 0;
+				r.r_cx = 0;
+				r.r_dx = 0;
+				r.r_bp = 0;
+				r.r_si = 0;
+				r.r_di = 0;
+				r.r_ds = 0;
+				r.r_es = 0;
+				r.r_flags = 0;
 				intrpt(0x21, &r);
 				if(!tracemode	/* /Y --> F8 on CONFIG.SYS */
 				 || ((r.r_bx & 0xff00) == 0xfd00	/* FreeDOS >= build 2025 */

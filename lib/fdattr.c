@@ -49,8 +49,17 @@ int fdattr(const int fd)
 {
   IREGS r;
 
+  /* Initialize all IREGS fields to avoid garbage causing crashes */
   r.r_ax = 0x4400;              /* Get handle information */
   r.r_bx = fd;
+  r.r_cx = 0;
+  r.r_dx = 0;
+  r.r_bp = 0;
+  r.r_si = 0;
+  r.r_di = 0;
+  r.r_ds = 0;
+  r.r_es = 0;
+  r.r_flags = 0;
   intrpt(0x21, &r);
   return (!( r.r_flags & 1 ) )         /* call OK */
   ? r.r_dx          /* attributes */

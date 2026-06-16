@@ -64,7 +64,7 @@ extern unsigned _FLAGS;
 #else
 
 #if defined(__WATCOMC__) || defined(__GNUC__)
-#define USEREGS  union REGPACK reg ;
+#define USEREGS  union REGPACK reg = {0};
 #define _AH reg.h.ah
 #define _AL reg.h.al
 #define _BH reg.h.bh
@@ -86,7 +86,7 @@ extern unsigned _FLAGS;
 
 #else
 
-#define USEREGS  union REGS reg ; struct SREGS sreg ;
+#define USEREGS  union REGS reg = {0}; struct SREGS sreg = {0};
 #define _AH reg.h.ah
 #define _AL reg.h.al
 #define _BH reg.h.bh

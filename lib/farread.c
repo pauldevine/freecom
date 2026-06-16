@@ -54,13 +54,19 @@ static unsigned DOSreadwrite(int fd, void far *buffer, unsigned size,
 {
 	IREGS r;
 
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = func;
 	r.r_bx = fd;
 	r.r_cx = size;
 	r.r_dx = FP_OFF(buffer);
-    r.r_ds = FP_SEG(buffer);
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_ds = FP_SEG(buffer);
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt(0x21, &r);
-    return( ( r.r_flags & 1 ) ? 0xFFFF : r.r_ax );
+	return( ( r.r_flags & 1 ) ? 0xFFFF : r.r_ax );
 }
 
 
@@ -100,9 +106,17 @@ int sfn_open(const char *pathname, int flags)
 {
 #if defined(__GNUC__)
 	IREGS r;
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0x3d00 | flags;
+	r.r_bx = 0;
+	r.r_cx = 0;
 	r.r_dx = FP_OFF(pathname);
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
 	r.r_ds = FP_SEG(pathname);
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt(0x21, &r);
 	return (r.r_flags & 1) ? -1 : (int)r.r_ax;
 #else
@@ -117,8 +131,17 @@ int sfn_open(const char *pathname, int flags)
 int dos_close(int fd)
 {
 	IREGS r;
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0x3e00;
 	r.r_bx = fd;
+	r.r_cx = 0;
+	r.r_dx = 0;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_ds = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt(0x21, &r);
 	return (r.r_flags & 1) ? -1 : 0;
 }
@@ -136,24 +159,26 @@ int dos_write(int fd, const void *buf, unsigned int len)
 
 static int sfn_creat_common(const char *pathname, int attr, int new)
 {
-#ifdef __WATCOMC__
-	int handle;
-	int result = (new ? _dos_creatnew : _dos_creat)(pathname, attr, &handle);
-	return (result == 0 ? handle : -1);
-#else
+	/* Use direct INT 21h for all compilers to avoid runtime library issues */
 	IREGS r;
 
-	r.r_ds = FP_SEG( pathname );
-	r.r_dx = FP_OFF( pathname );
-	r.r_cx = attr;
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = new ? 0x5B00 : 0x3C00;
+	r.r_bx = 0;
+	r.r_cx = attr;
+	r.r_dx = FP_OFF( pathname );
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_ds = FP_SEG( pathname );
+	r.r_es = 0;
+	r.r_flags = 0;
 
 	intrpt( 0x21, &r );
 
 	if( ( r.r_flags & 1 ) ) r.r_ax = 0xFFFF;
 
 	return( r.r_ax );
-#endif
 }
 
 int sfn_creat(const char *pathname, int attr)

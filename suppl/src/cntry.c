@@ -229,8 +229,13 @@ Country *nlsNewInfo(void)
 	r.r_es = FP_SEG(&buf[0]);
 	r.r_di = FP_OFF(&buf[0]);
 #endif
-	
+
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_bx = r.r_dx = 0xffff;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_ds = 0;
+	r.r_flags = 0;
 #define DOS(val) r.r_ax = 0x6500 | (val);	\
 	r.r_cx = sizeof(buf);					\
     intrpt( 0x21, &r );                       \

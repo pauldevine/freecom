@@ -55,9 +55,17 @@ unsigned _dos_settime(struct dostime_t *t)
 {
   IREGS r;
 
+  /* Initialize all IREGS fields to avoid garbage causing crashes */
   r.r_ax = 0x2D00;
+  r.r_bx = 0;
   r.r_cx = ( ( t->hour & 0xFF ) << 8 ) | ( t->minute & 0xFF );
   r.r_dx = ( ( t->second & 0xFF ) << 8 ) | ( t->hsecond & 0xFF );
+  r.r_bp = 0;
+  r.r_si = 0;
+  r.r_di = 0;
+  r.r_ds = 0;
+  r.r_es = 0;
+  r.r_flags = 0;
 
   intrpt(0x21, &r);
 

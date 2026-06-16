@@ -31,8 +31,17 @@
 int kswapInit(void)
 {   IREGS r;
 
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x4bfe;        /* Get kswap argument structure segm */
+    r.r_bx = 0;
+    r.r_cx = 0;
     r.r_dx = FD_MAGIC;
+    r.r_bp = 0;
+    r.r_si = 0;
+    r.r_di = 0;
+    r.r_ds = 0;
+    r.r_es = 0;
+    r.r_flags = 0;
     intrpt(0x21, &r);
 
     if(!( r.r_flags & 1 )) {
@@ -82,9 +91,17 @@ void kswapRegister(kswap_p ctxt)
         stored. */
     kswapSetISR();
 
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x4bfd;    /* Set kswap argument structure segm */
     r.r_bx = (word)ctxt;
+    r.r_cx = 0;
     r.r_dx = FD_MAGIC;
+    r.r_bp = 0;
+    r.r_si = 0;
+    r.r_di = 0;
+    r.r_ds = 0;
+    r.r_es = 0;
+    r.r_flags = 0;
     intrpt(0x21, &r);
     if(r.r_flags & 1) { /* failed */
         swapOnExec = ERROR;     /* cannot register -> cannot use */

@@ -109,12 +109,31 @@ int cmd_ver (char * rest) {
   if(optR) {                         /* version information */
         unsigned int major, minor;
         IREGS regs;
+        /* Initialize all IREGS fields to avoid garbage causing crashes */
         regs.r_ax = 0x3306;
         regs.r_bx = 0;
+        regs.r_cx = 0;
+        regs.r_dx = 0;
+        regs.r_bp = 0;
+        regs.r_si = 0;
+        regs.r_di = 0;
+        regs.r_ds = 0;
+        regs.r_es = 0;
+        regs.r_flags = 0;
         intrpt(0x21, &regs);
         major = regs.r_bx & 255;
         minor = regs.r_bx >> 8;
+        /* Re-initialize for second call */
         regs.r_ax = 0x3000;
+        regs.r_bx = 0;
+        regs.r_cx = 0;
+        regs.r_dx = 0;
+        regs.r_bp = 0;
+        regs.r_si = 0;
+        regs.r_di = 0;
+        regs.r_ds = 0;
+        regs.r_es = 0;
+        regs.r_flags = 0;
         intrpt(0x21, &regs);
         if (major == 0) {
           major = regs.r_ax & 255;
@@ -133,8 +152,17 @@ int cmd_ver (char * rest) {
 /*         displayString(TEXT_MSG_VER_LATER_FREEDOS
            , regs.r_cx >> 8, regs.r_cx & 0xFF, regs.r_bx & 0xFF);
            , 2, 0, regs.r_bx & 0xFF ); */
+           /* Re-initialize for third call */
            regs.r_ax = 0x33FF;
+           regs.r_bx = 0;
+           regs.r_cx = 0;
            regs.r_dx = 0;
+           regs.r_bp = 0;
+           regs.r_si = 0;
+           regs.r_di = 0;
+           regs.r_ds = 0;
+           regs.r_es = 0;
+           regs.r_flags = 0;
            intrpt( 0x21, &regs );
            if (regs.r_dx) {
              pstart = MK_FP( regs.r_dx, regs.r_ax );

@@ -53,7 +53,17 @@
 static int mygetch( void )
 {
     IREGS regs;
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     regs.r_ax = 0x0700;
+    regs.r_bx = 0;
+    regs.r_cx = 0;
+    regs.r_dx = 0;
+    regs.r_bp = 0;
+    regs.r_si = 0;
+    regs.r_di = 0;
+    regs.r_ds = 0;
+    regs.r_es = 0;
+    regs.r_flags = 0;
     intrpt(0x21, &regs);
     return (regs.r_ax)&0xFF;
 }

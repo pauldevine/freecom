@@ -140,16 +140,30 @@ void displayPrompt(const char *pr)
 
             d = getdisk();
 
+            /* Initialize all IREGS fields to avoid garbage causing crashes */
 	    r.r_flags = 1;	/* CY before 21.71 calls! */
             r.r_ax = 0x7147;
+            r.r_bx = 0;
+            r.r_cx = 0;
             r.r_dx = 0;
+            r.r_bp = 0;
             r.r_si = FP_OFF(pathname);
+            r.r_di = 0;
             r.r_ds = FP_SEG(pathname);
+            r.r_es = 0;
 
             intrpt(0x21, &r);
 
             if(r.r_flags & 1 || r.r_ax == 0x7100) {
+                /* Re-initialize for fallback call */
                 r.r_ax = 0x4700;
+                r.r_bx = 0;
+                r.r_cx = 0;
+                r.r_dx = 0;
+                r.r_bp = 0;
+                r.r_di = 0;
+                r.r_es = 0;
+                r.r_flags = 0;
                 intrpt(0x21, &r);
             }
 

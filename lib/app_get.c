@@ -30,7 +30,17 @@ int appendDisable(void)
 {	IREGS r;
 	int state;
 #if 1
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0xb700;		/* APPEND installation check */
+	r.r_bx = 0;
+	r.r_cx = 0;
+	r.r_dx = 0;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_ds = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt(0x2f, &r);
 #endif
 #if 0
@@ -51,16 +61,34 @@ int appendDisable(void)
 	}
 
 	/* APPEND is loaded */
+	/* Re-initialize IREGS fields for next call */
 	r.r_ax = 0xb706;		/* Get APPEND function state */
+	r.r_bx = 0;
+	r.r_cx = 0;
+	r.r_dx = 0;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_ds = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt(0x2f, &r);
 
 	dprintf(("[MUX-B7: get state 0x%04x]\n", r.r_bx));
 
 	state = r.r_bx;
 	if(state & 1) {
-
+		/* Re-initialize IREGS fields for next call */
 		r.r_ax = 0xb707;		/* Set APPEND function state */
 		r.r_bx = state & ~1;
+		r.r_cx = 0;
+		r.r_dx = 0;
+		r.r_bp = 0;
+		r.r_si = 0;
+		r.r_di = 0;
+		r.r_ds = 0;
+		r.r_es = 0;
+		r.r_flags = 0;
 		intrpt(0x2f, &r);
 
 		dprintf(("MUX-B7: set state 0x%04x]\n", r.r_bx));
