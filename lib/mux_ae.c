@@ -98,13 +98,16 @@ int runExtension(char * const command, char * const line)
 	line[BUFFER_SIZE_MUX_AE] = '\0';
 
 /* Both strings have been prepared now; the MUX call is going to happen */
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0xae00;		/* Installable Commands check for extension */
-	r.r_dx = 0xffff;		/* Magic value */
-	r.r_cx = -llen;			/* length of command line tail (4dos v4) */
-	r.r_ds = r.r_es = FP_SEG(command);
 	r.r_bx = FP_OFF(line) - 2;
+	r.r_cx = -llen;			/* length of command line tail (4dos v4) */
+	r.r_dx = 0xffff;		/* Magic value */
+	r.r_bp = 0;
 	r.r_si = FP_OFF(command) - 1;
 	r.r_di = 0;				/* Magic value 4dos v4 */
+	r.r_ds = r.r_es = FP_SEG(command);
+	r.r_flags = 0;
 
     intrpt(0x2F, &r);
 

@@ -104,22 +104,33 @@ char *dfntruename(const char * const fnam)
 
 	chkHeap
 	if((h = eno_malloc(DFN_FILENAME_BUFFER_LENGTH)) != 0) {
+		/* Initialize all IREGS fields to avoid garbage causing crashes */
 #ifdef FEATURE_LONG_FILENAMES
-	r.r_flags = 1;	/* CY before 21.71 calls! */
-        r.r_ax = 0x7160;
-        r.r_cx = 0x8002;
+		r.r_flags = 1;	/* CY before 21.71 calls! */
+		r.r_ax = 0x7160;
+		r.r_bx = 0;
+		r.r_cx = 0x8002;
+		r.r_dx = 0;
+		r.r_bp = 0;
 #else
 		r.r_ax = 0x6000;
+		r.r_bx = 0;
+		r.r_cx = 0;
+		r.r_dx = 0;
+		r.r_bp = 0;
+		r.r_flags = 0;
 #endif
-        r.r_ds = FP_SEG(fnam);
+		r.r_ds = FP_SEG(fnam);
 		r.r_si = FP_OFF(fnam);
 		r.r_es = FP_SEG(h);
 		r.r_di = FP_OFF(h);
 		chkHeap
-        intrpt( 0x21, &r );
+		intrpt( 0x21, &r );
 #ifdef FEATURE_LONG_FILENAMES
         if( ( r.r_flags & 1 ) || r.r_ax == 0x7100 ) {
+            /* Re-initialize for fallback call */
             r.r_ax = 0x6000;
+            r.r_flags = 0;
             intrpt( 0x21, &r );
 #endif
 		if(( r.r_flags & 1 ) ? r.r_ax : 0) {		/* failed */

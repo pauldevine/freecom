@@ -155,19 +155,28 @@ char *_getdcwd(int drive, char Xbuf[], unsigned length)
 #endif
 		strcpy(buf, "A:\\");
 		*buf += drive? drive - 1: getdisk();
+		/* Initialize all IREGS fields to avoid garbage causing crashes */
 		r.r_si = FP_OFF(&buf[3]);
 		r.r_dx = drive;
 		r.r_ds = FP_SEG(buf);
+		r.r_bx = 0;
+		r.r_cx = 0;
+		r.r_bp = 0;
+		r.r_di = 0;
+		r.r_es = 0;
 #ifdef FEATURE_LONG_FILENAMES
 		r.r_flags = 1;	/* CY before 21.71 calls! */
 		r.r_ax = 0x7147;
 #else
-        r.r_ax = 0x4700;
+		r.r_ax = 0x4700;
+		r.r_flags = 0;
 #endif
 		intrpt(0x21, &r);
 #ifdef FEATURE_LONG_FILENAMES
 		if((r.r_flags & 1) || r.r_ax == 0x7100) {				/* Get path failed */
+            /* Re-initialize for fallback call */
             r.r_ax = 0x4700;
+            r.r_flags = 0;
             intrpt(0x21, &r);
 #endif
             if(r.r_flags & 1) {

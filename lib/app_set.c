@@ -26,8 +26,17 @@ void appendRestore(const int state)
 {	if(state & 1) {		/* Re-enable DOS/APPEND */
 		IREGS r;
 
+		/* Initialize all IREGS fields to avoid garbage causing crashes */
 		r.r_ax = 0xb707;		/* Set APPEND function state */
 		r.r_bx = state;
+		r.r_cx = 0;
+		r.r_dx = 0;
+		r.r_bp = 0;
+		r.r_si = 0;
+		r.r_di = 0;
+		r.r_ds = 0;
+		r.r_es = 0;
+		r.r_flags = 0;
 		intrpt(0x2f, &r);
 
 		dprintf(("MUX-B7: set state 0x%04x]\n", state) );

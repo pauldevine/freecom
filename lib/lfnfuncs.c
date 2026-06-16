@@ -47,14 +47,18 @@ const char * getshortfilename( const char *longfilename )
 
     if (!__supportlfns) return( longfilename );
 
-    r.r_ds = FP_SEG( longfilename );
-    r.r_si = FP_OFF( longfilename );
-    r.r_es = FP_SEG( shortfilename );
-    r.r_di = FP_OFF( shortfilename );
     shortfilename[0] = '\0';
-    r.r_cx = 0x8001; /* Get short filename */
-    r.r_flags = 1;	/* CY before 21.71 calls! */
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x7160;/* LFN truename function */
+    r.r_bx = 0;
+    r.r_cx = 0x8001; /* Get short filename */
+    r.r_dx = 0;
+    r.r_bp = 0;
+    r.r_si = FP_OFF( longfilename );
+    r.r_di = FP_OFF( shortfilename );
+    r.r_ds = FP_SEG( longfilename );
+    r.r_es = FP_SEG( shortfilename );
+    r.r_flags = 1;	/* CY before 21.71 calls! */
 
     intrpt( 0x21, &r );
 
@@ -74,22 +78,34 @@ static int __creat_or_truncate( const char * filename, int mode, int code )
     int handle;
     IREGS r;
 
+    puts("[T0]");
     if( !__supportlfns ) {
+        puts("[T1]");
         return 0;
     }
+    puts("[T2]");
 
-    r.r_ds = FP_SEG( filename );
-    r.r_si = FP_OFF( filename );
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
+    r.r_ax = 0x716C;
     r.r_bx = O_WRONLY;
     r.r_cx = mode;
     r.r_dx = code;
+    r.r_bp = 0;
+    r.r_si = FP_OFF( filename );
+    r.r_di = 0;
+    r.r_ds = FP_SEG( filename );
+    r.r_es = 0;
     r.r_flags = 1;	/* CY before 21.71 calls! */
-    r.r_ax = 0x716C;
 
+    puts("[T3]");
     intrpt( 0x21, &r );
+    puts("[T4]");
 
-    if( ( r.r_flags & 1 ) || r.r_ax == 0x7100 )
+    if( ( r.r_flags & 1 ) || r.r_ax == 0x7100 ) {
+        puts("[T5]");
         return r.r_ax == 0x50; /* file already exists for error 0x50 */
+    }
+    puts("[T6]");
     handle = r.r_ax;
     /*
      * Win2k always returns handle == 2, which is a bug.
@@ -98,6 +114,7 @@ static int __creat_or_truncate( const char * filename, int mode, int code )
      * ( as it does for '1' and '0', when redirecting stdin and stdout )
      */
     if( handle != 2 )dos_close( handle );
+    puts("[T7]");
     return 1;
 }
 
@@ -113,8 +130,15 @@ FILE * lfnfopen( const char *filename, const char *mode )
 
 int lfn_creat( const char *filename, int attr )
 {
-    if ( __creat_or_truncate( filename, attr, 0x12 ) )
+    int rc;
+    puts("[L0]");
+    rc = __creat_or_truncate( filename, attr, 0x12 );
+    puts("[L1]");
+    if ( rc ) {
+        puts("[L2]");
         return sfn_open( getshortfilename( filename ), O_WRONLY );
+    }
+    puts("[L3]");
     return sfn_creat( filename, attr );
 }
 
@@ -127,12 +151,17 @@ int lfnrename( const char *oldfilename, const char *newfilename )
         return( -1 );
     }
 
-    r.r_ds = FP_SEG( oldfilename );
-    r.r_dx = FP_OFF( oldfilename );
-    r.r_es = FP_SEG( newfilename );
-    r.r_di = FP_OFF( newfilename );
-    r.r_flags = 1;	/* CY before 21.71 calls! */
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x7156;
+    r.r_bx = 0;
+    r.r_cx = 0;
+    r.r_dx = FP_OFF( oldfilename );
+    r.r_bp = 0;
+    r.r_si = 0;
+    r.r_di = FP_OFF( newfilename );
+    r.r_ds = FP_SEG( oldfilename );
+    r.r_es = FP_SEG( newfilename );
+    r.r_flags = 1;	/* CY before 21.71 calls! */
 
     intrpt( 0x21, &r );
 
@@ -178,14 +207,17 @@ int lfnfindfirst( const char *path, struct lfnffblk *buf, unsigned attr )
     if( !__supportlfns )
         return( sfnfindfirst( path, ( struct ffblk * )buf, attr ) );
 
-    r.r_ds = FP_SEG( path );
-    r.r_dx = FP_OFF( path );       /* path goes in DS:DX */
-    r.r_es = FP_SEG( &lfnblock );
-    r.r_di = FP_OFF( &lfnblock );  /* LFN find block goes in ES:DI */
-    r.r_si = 1;                    /* Use DOS date/time format */
-    r.r_cx = attr;
-    r.r_flags = 1;	/* CY before 21.71 calls! */
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x714E;               /* LFN Findfirst */
+    r.r_bx = 0;
+    r.r_cx = attr;
+    r.r_dx = FP_OFF( path );       /* path goes in DS:DX */
+    r.r_bp = 0;
+    r.r_si = 1;                    /* Use DOS date/time format */
+    r.r_di = FP_OFF( &lfnblock );  /* LFN find block goes in ES:DI */
+    r.r_ds = FP_SEG( path );
+    r.r_es = FP_SEG( &lfnblock );
+    r.r_flags = 1;	/* CY before 21.71 calls! */
 
     intrpt( 0x21, &r );
 
@@ -226,12 +258,17 @@ int lfnfindnext( struct lfnffblk *buf )
         return( sfnfindnext( ( struct ffblk * )buf ) );
     }
 
-    r.r_es = FP_SEG( &lfnblock );
-    r.r_di = FP_OFF( &lfnblock );          /* The LFN find block */
-    r.r_bx = buf->lfnax;                   /* The lfn handle set by findfirst */
-    r.r_si = 1;                            /* Use DOS times */
-    r.r_flags = 1;	/* CY before 21.71 calls! */
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x714F;
+    r.r_bx = buf->lfnax;                   /* The lfn handle set by findfirst */
+    r.r_cx = 0;
+    r.r_dx = 0;
+    r.r_bp = 0;
+    r.r_si = 1;                            /* Use DOS times */
+    r.r_di = FP_OFF( &lfnblock );          /* The LFN find block */
+    r.r_ds = 0;
+    r.r_es = FP_SEG( &lfnblock );
+    r.r_flags = 1;	/* CY before 21.71 calls! */
 
     intrpt( 0x21, &r );
 
@@ -251,9 +288,17 @@ int lfnfindclose( struct lfnffblk *buf )
     /* Let's check if LFN was used; if not, there is no need for findclose */
     if( !buf->lfnsup || !__supportlfns ) return( 0 );
 
-    r.r_bx = buf->lfnax;        /* Findfirst handle */
-    r.r_flags = 1;	/* CY before 21.71 calls! */
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = 0x71A1;            /* LFN findclose */
+    r.r_bx = buf->lfnax;        /* Findfirst handle */
+    r.r_cx = 0;
+    r.r_dx = 0;
+    r.r_bp = 0;
+    r.r_si = 0;
+    r.r_di = 0;
+    r.r_ds = 0;
+    r.r_es = 0;
+    r.r_flags = 1;	/* CY before 21.71 calls! */
 
     intrpt( 0x21, &r );
 
@@ -272,8 +317,16 @@ int lfnmkdir( const char *path )
 {
 	IREGS r;
 
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
+    r.r_ax = 0;
+    r.r_bx = 0;
+    r.r_cx = 0;
     r.r_dx = FP_OFF( path );
+    r.r_bp = 0;
+    r.r_si = 0;
+    r.r_di = 0;
 	r.r_ds = FP_SEG( path );
+    r.r_es = 0;
 	r.r_flags = 1;
     if (__supportlfns) {
         r.r_ax = 0x7139;
@@ -291,9 +344,17 @@ static int lfn_rc_dir( const char *path, int func )
 	IREGS r;
 
     path = getshortfilename( path );
+    /* Initialize all IREGS fields to avoid garbage causing crashes */
     r.r_ax = func;
+    r.r_bx = 0;
+    r.r_cx = 0;
     r.r_dx = FP_OFF( path );
+    r.r_bp = 0;
+    r.r_si = 0;
+    r.r_di = 0;
 	r.r_ds = FP_SEG( path );
+    r.r_es = 0;
+    r.r_flags = 0;
     intrpt( 0x21, &r );
     return( -( r.r_flags & 1 ) );
 }

@@ -77,9 +77,17 @@ void readcommandDOS(char * const str, int maxlen)
 	if(echo)
 		printprompt();
 
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0xa00;
+	r.r_bx = 0;
+	r.r_cx = 0;
 	r.r_ds = FP_SEG(iobuf);
 	r.r_dx = FP_OFF(iobuf);
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt(0x21, &r);
 
 	dprintf(("[CMDINPUT characters max:%u out:%u]\n", iobuf[0], iobuf[1]));

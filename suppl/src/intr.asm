@@ -59,14 +59,16 @@ _intrf_:
 %endif
 		push	bx
 		push	cx
-		mov	bx, dx
+		mov	bx, dx			; BX = REGPACK pointer (from DX via regparmcall)
 		push	dx
 		push	si
 		push	di
 		push	ds
-		mov	[cs:intr_1-1], al
-		jmp	short intr_2		; flush the instruction cache
-intr_2:
+%ifidn __OUTPUT_FORMAT__, elf
+		; Save interrupt number (in AL) to code segment for later dispatch
+		; This avoids self-modifying code issues
+		mov	[cs:.saved_int_num], al
+%endif
 		mov	ah, [bx+18]		; SZAPC flags
 		sahf
 		mov	ax, [bx]
@@ -75,11 +77,41 @@ intr_2:
 		mov	bp, [bx+8]
 		mov	si, [bx+10]
 		mov	di, [bx+12]
-		push	word [bx+14]		; ds
+		push	word [bx+14]		; push ds value from REGPACK
 		mov	es, [bx+16]
 		mov	bx, [bx+2]
-		pop	ds
+		pop	ds			; ds = REGPACK.r_ds
+%ifidn __OUTPUT_FORMAT__, elf
+		; Dispatch to the correct INT based on saved value
+		; Use compare chain - most common interrupts first
+		cmp	byte [cs:.saved_int_num], 0x21
+		je	.do_int_21
+		cmp	byte [cs:.saved_int_num], 0x10
+		je	.do_int_10
+		cmp	byte [cs:.saved_int_num], 0x2F
+		je	.do_int_2f
+		; Default to INT 21h for unknown (shouldn't happen in FreeCOM)
+		jmp	short .do_int_21
+
+.do_int_10:
+		int	0x10
+		jmp	short .after_int
+
+.do_int_2f:
+		int	0x2F
+		jmp	short .after_int
+
+.do_int_21:
+		int	0x21
+		; fall through to .after_int
+
+.after_int:
+		jmp	short intr_1		; skip over data
+
+.saved_int_num:	db	0			; storage for interrupt number
+%else
 		int	0
+%endif
 intr_1:
 		pushf
 		push	ds

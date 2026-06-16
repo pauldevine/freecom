@@ -529,7 +529,20 @@ char *readbatchline(int *eflag, char *textline, int size)
     }
 
     assert(ip != 0);
+#ifdef __GNUC__
+    /* VICTOR9000 FIX: Manual 32-bit increment to avoid library call */
+    {
+      union {
+        long l;
+        struct { unsigned int lo, hi; } w;
+      } cnt;
+      cnt.l = bc->blinecnt;
+      if (++cnt.w.lo == 0) cnt.w.hi++;  /* carry on overflow */
+      bc->blinecnt = cnt.l;
+    }
+#else
     ++bc->blinecnt;
+#endif
     if (chkCBreak(BREAK_BATCHFILE)      /* User break */
         || getbline(bc->bfile, textline, len, size-1) == 0  /* End of file.... */
         || (ip = textlineEnd(textline, size)) == 0)  /* line too long */
@@ -546,7 +559,23 @@ char *readbatchline(int *eflag, char *textline, int size)
 /*    rtrimsp(textline);	must not remove trailing spaces */
 	first = memchr(textline, '\n', size);
 	len = first + 1 - textline;
+#ifdef __GNUC__
+    /* VICTOR9000 FIX: Manual 32-bit addition to avoid library call */
+    {
+      union {
+        long l;
+        struct { unsigned int lo, hi; } w;
+      } pos;
+      unsigned int old_lo;
+      pos.l = bc->bpos;
+      old_lo = pos.w.lo;
+      pos.w.lo += (unsigned int)len;
+      if (pos.w.lo < old_lo) pos.w.hi++;  /* carry */
+      bc->bpos = pos.l;
+    }
+#else
 	bc->bpos += len;
+#endif
 	while(--first >= textline && ( *first == '\n' || *first == '\r' ) );
 	first[1] = '\0';
     first = ltrimcl(textline);

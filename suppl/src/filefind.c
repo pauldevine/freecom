@@ -89,10 +89,17 @@ int findfirst(const char * const pattern, struct ffblk *ff, int attrib)
 		search data buffer. */
 	dta = getdta();
 	setdta((void far*)ff);
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
+	r.r_ax = 0x4e00;
+	r.r_bx = 0;
+	r.r_cx = attrib;
 	r.r_dx = FP_OFF(pattern);
 	r.r_ds = FP_SEG(pattern);
-	r.r_cx = attrib;
-	r.r_ax = 0x4e00;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	rv = invokeDOS(&r);
 
 	setdta(dta);
@@ -107,7 +114,17 @@ int findnext(struct ffblk *ff)
 
 	dta = getdta();
 	setdta((void far*)ff);
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0x4f00;
+	r.r_bx = 0;
+	r.r_cx = 0;
+	r.r_dx = 0;
+	r.r_ds = 0;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	rv = invokeDOS(&r);
 
 	setdta(dta);

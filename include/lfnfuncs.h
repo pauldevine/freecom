@@ -111,6 +111,13 @@ extern unsigned char lfncomplete;
 
 #define dos_ffblk         ffblk
 
+/* When LFN is disabled, provide compatibility wrappers for single-arg mkdir/rmdir */
+/* DOS ignores the mode parameter, so pass 0 */
+#include <sys/stat.h>
+#define mkdir(path)       mkdir(path, 0)
+#define rmdir(path)       rmdir(path)
+#define chdir(path)       chdir(path)
+
 #endif /* FEATURE_LONG_FILENAMES */
 /*#endif*/ /* __TURBOC__ */
 #endif /* H__LFNFUNCS_ */

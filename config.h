@@ -34,7 +34,9 @@
 #define DISP_EXITCODE
 
 /* Define to enable usage of LFNs */
-#define FEATURE_LONG_FILENAMES
+/* Disabled for Victor 9000 - no LFN support in kernel, and the LFN
+   code path causes crashes during file creation */
+/* #define FEATURE_LONG_FILENAMES */
 
 /* Define to enable usage or the DOS switch character in option processing */
 #define FEATURE_SWITCHAR

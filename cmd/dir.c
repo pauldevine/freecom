@@ -294,9 +294,13 @@ static void printLFNname(char *shortName, char *ext)
     dprintf(("[LFN: path %s\n",pathbuffer)); 
 	
       /* LFN get canonical LFN */
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_flags = 1;	/* CY before 21.71 calls! */
 	r.r_ax = 0x7160;
+	r.r_bx = 0;
 	r.r_cx = 0x8002;
+	r.r_dx = 0;
+	r.r_bp = 0;
 	r.r_si = FP_OFF( pathbuffer );
     r.r_ds = FP_SEG( pathbuffer );
 	r.r_di = FP_OFF( longname );
@@ -645,10 +649,17 @@ static int dir_print_header(int drive)
 
  */
 
+  /* Initialize all IREGS fields to avoid garbage causing crashes */
   r.r_ax = 0x6900;
   r.r_bx = drive + 1;
+  r.r_cx = 0;
   r.r_ds = FP_SEG(&media);
   r.r_dx = FP_OFF(&media);
+  r.r_bp = 0;
+  r.r_si = 0;
+  r.r_di = 0;
+  r.r_es = 0;
+  r.r_flags = 0;
   intrpt( 0x21, &r );
 
   /* print drive info */
@@ -764,13 +775,17 @@ static int dir_print_free(unsigned long dirs)
   displayString(TEXT_DIR_FTR_DIRS, buffer);
 
   rootname[0] = toupper(*path);
+  /* Initialize all IREGS fields to avoid garbage causing crashes */
   r.r_flags = 1;	/* CY before 21.73 calls! */
   r.r_ax = 0x7303;
+  r.r_bx = 0;
+  r.r_cx = sizeof(FAT32_Free_Space);
   r.r_ds = FP_SEG(rootname);
   r.r_dx = FP_OFF(rootname);
+  r.r_bp = 0;
+  r.r_si = 0;
   r.r_es = FP_SEG(&FAT32_Free_Space);
   r.r_di = FP_OFF(&FAT32_Free_Space);
-  r.r_cx = sizeof(FAT32_Free_Space);
   intrpt( 0x21, &r);
 
   /* Note: RBIL carry clear and al==0 also means unimplemented 
@@ -802,9 +817,18 @@ static int dir_print_free(unsigned long dirs)
                 strcat(buffer, " Mega");
                 goto output;
                 }
-  }  
+  }
+  /* Initialize all IREGS fields to avoid garbage causing crashes */
   r.r_ax = 0x3600;
+  r.r_bx = 0;
+  r.r_cx = 0;
   r.r_dx = toupper(*path) - 'A' + 1;
+  r.r_bp = 0;
+  r.r_si = 0;
+  r.r_di = 0;
+  r.r_ds = 0;
+  r.r_es = 0;
+  r.r_flags = 0;
   intrpt(0x21, &r);
 #ifdef __GNUC__
   /* VICTOR9000 FIX: Avoid 32-bit multiplication which calls __mulsi3.

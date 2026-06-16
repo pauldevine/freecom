@@ -143,25 +143,43 @@ static int BIGcopy(int fdout, int fdin, int asc)
 	int retval = 0;
 								/* stat stuff */
 	unsigned startTime, lastTime=0, now, doStat = 0, deviceIn;
-	unsigned long copied = 0, toCopy = filelength(fdin);
+#ifdef __GNUC__
+	/* VICTOR9000: statistics disabled to avoid 32-bit division crash */
+	unsigned long copied = 0;
+#else
+	unsigned long copied = 0, toCopy;
+#endif
 	char *statString;
 	char far *ctrlz;
-	
-	
+	volatile unsigned short far *dbg = (unsigned short far *)0xF0000000UL;
+
+	/* Debug: puts to confirm BIGcopy entry */
+	// // puts("[BIG]");
+
+#ifndef __GNUC__
+	toCopy = filelength(fdin);
+#endif
+	// // puts("[FLEN]");
+
+	dbg[20] = 0x0F00 | 'K';  /* BIGcopy entered */
+
 	/* Fetch the largest available buffer */
 	for(size = 60*1024u; size != 0; size -= 4*1024) {
+		dbg[21] = 0x0F00 | 'L';  /* before DOSalloc */
 #ifdef FARDATA
 		/* use last-fit allocation to work well with large model */
 		buffer = MK_SEG_PTR(void, DOSalloc(size/16,2));
 #else
 		buffer = MK_SEG_PTR(void, DOSalloc(size/16,0));
 #endif
+		dbg[22] = 0x0F00 | 'M';  /* after DOSalloc */
 		if(buffer != NULL)
 			goto ok;
 	}
 	return 3;	/* out of memory error */
 
 ok:
+	dbg[23] = 0x0F00 | 'N';  /* DOSalloc succeeded */
 	dprintf( ("[MEM: BIGcopy() allocate %u bytes @ 0x%04x]\n"
 	 , size, FP_SEG(buffer)) );
 	deviceIn = isadev(fdin);
@@ -170,6 +188,7 @@ ok:
 		: TEXT_COPY_COPIED);
 	startTime = *(unsigned far *)MK_FP(0x40,0x6c);
 
+	dbg[24] = 0x0F00 | 'O';  /* before read loop */
 	ctrlz = 0;
 	while((rd = farread(fdin, buffer, size)) != 0) {
 		if(rd == 0xffff) {
@@ -189,7 +208,21 @@ ok:
 		}
 			
 						/* statistics */
-		copied += rd;	
+#ifdef __GNUC__
+		/* VICTOR9000 FIX: Manual 32-bit addition to avoid __addsi3 library call */
+		{
+			union {
+				unsigned long l;
+				struct { unsigned int lo, hi; } w;
+			} sum;
+			sum.l = copied;
+			sum.w.lo += rd;
+			if (sum.w.lo < rd) sum.w.hi++;  /* carry */
+			copied = sum.l;
+		}
+#else
+		copied += rd;
+#endif	
 			
 		now = *(unsigned far *)MK_FP(0x40,0x6c);
 		
@@ -199,8 +232,14 @@ ok:
 			doStat = TRUE;
 		
 		if(now - lastTime > 18) {
+#ifdef __GNUC__
+			/* VICTOR9000 FIX: Skip statistics display to avoid __udivsi3 crash */
+			(void)doStat;
+			(void)statString;
+#else
 			if(doStat)
 				printf(statString, copied/1024, toCopy/1024);
+#endif
 				
 			if(cbreak) {
 				retval = 3;
@@ -257,35 +296,57 @@ static int copy(char *dst, char *pattern, struct CopySource *src
   FLAG wildcarded;
   /*FLAG isfirst = 1;*/
   FLAG singleFileCopy = src->app == NULL;
+  volatile unsigned short far *dbg = (unsigned short far *)0xF0000000UL;
 
   assert(dst);
   assert(pattern);
   assert(src);
 
+  // // puts("[c0]");
+  dbg[15] = 0x0F00 | 'F';  /* copy() entered */
+
+  // // puts("[c1]");
   if(strpbrk(pattern, "*?") == 0) {
+    // // puts("[c2]");
   	srcFile = dfnfilename(pattern);
   	wildcarded = 0;
+    // // puts("[c3]");
   } else if(dos_findfirst(pattern, &ff, FA_RDONLY | FA_ARCH) != 0) {
+    // // puts("[c4]");
     error_sfile_not_found(pattern);
     return 0;
   } else {
+    // // puts("[c5]");
   	srcFile = ff.ff_name;
   	wildcarded = 1;
   }
 
+  // // puts("[c6]");
+  dbg[16] = 0x0F00 | 'G';  /* after findfirst */
+
+  // // puts("[c7]");
   do {
 /*    if( wildcarded && !strpbrk( dst, "*?" ) && !isfirst ) openMode = O_APPEND; */
+    // // puts("[c8]");
     fillFnam(rDest, dst, srcFile);
+    // // puts("[c9]");
     if(rDest[0] == 0)
       return 0;
+    // // puts("[cA]");
     h = src;
+    // // puts("[cB]");
+
     do {  /* to prevent to open a source file for writing, e.g.
           for COPY *.c *.?    */
+      // // puts("[cC]");
       fillFnam(rSrc, h->fnam, srcFile);
+      // // puts("[cD]");
       if(rSrc[0] == 0) {
         return 0;
       }
+      // // puts("[cE]");
       rc = samefile(rDest, rSrc);
+      // // puts("[cF]");
       if(rc < 0) {
         error_out_of_memory();
         return 0;
@@ -293,7 +354,9 @@ static int copy(char *dst, char *pattern, struct CopySource *src
         error_selfcopy(rDest);
         return 0;
       }
+      // // puts("[cG]");
     } while((h = h->app) != 0);
+    // // puts("[cH]");
 
     /* Concenation of files uses ASCII by default */
     if(src->app) {
@@ -301,11 +364,18 @@ static int copy(char *dst, char *pattern, struct CopySource *src
         h->flags = ASCII;
       if(!destFlags) destFlags = ASCII;
     }
+    // // puts("[cI]");
 
     if(interactive_command		/* Suppress prompt if in batch file */
        && openMode != O_APPEND && !optY
        && (fdout = dos_open(rDest, O_RDONLY)) >= 0) {
-    	int destIsDevice = isadev(fdout);
+      int destIsDevice;  /* C89 requires declarations at block start */
+      // // puts("[cJ]");
+      destIsDevice = isadev(fdout);
+
+      /* Debug marker: dest exists, checking source */
+      { unsigned short far *s = (unsigned short far *)0xF0000000UL;
+        s[1927] = 0x0700 | '8'; }
 
       dos_close(fdout);
       if(!destIsDevice) {	/* Devices do always exist */
@@ -314,6 +384,9 @@ static int copy(char *dst, char *pattern, struct CopySource *src
             return 0;
         } else {
 	        dos_close(fdin);
+          /* Debug marker: before userprompt */
+          { unsigned short far *s = (unsigned short far *)0xF0000000UL;
+            s[1928] = 0x0700 | '9'; }
           	switch(userprompt(PROMPT_OVERWRITE_FILE, rDest)) {
 	    	default:	/* Error */
 		    case 4:	/* Quit */
@@ -328,13 +401,21 @@ static int copy(char *dst, char *pattern, struct CopySource *src
         }
 	  }
     }
+
+    // // puts("[cK]");
+
     if(cbreak) {
       return 0;
     }
+    // // puts("[cL]");
+
     if((fdout = devopen(rDest, openMode)) < 0) {
+      // // puts("[cM]");
       error_open_file(rDest);
       return 0;
     }
+    // // puts("[cN]");
+
     keepFTime = 1;
     if(isadev(fdout)) {
       if(destFlags & BINARY)  {
@@ -343,21 +424,26 @@ static int copy(char *dst, char *pattern, struct CopySource *src
       }
       keepFTime = 0;
     }
+    // // puts("[cO]");
     h = src;
     keepFTime = (keepFTime && h->app == 0);
     do {
+      // // puts("[cP]");
       fillFnam(rSrc, h->fnam, srcFile);
+      // // puts("[cQ]");
       if(rSrc[0] == 0) {
         dos_close(fdout);
         unlink(rDest);		/* if device -> no removal, ignore error */
         return 0;
       }
+      // // puts("[cR]");
       if((fdin = devopen(rSrc, O_RDONLY)) < 0) {
         error_open_file(rSrc);
         dos_close(fdout);
         unlink(rDest);		/* if device -> no removal, ignore error */
         return 0;
       }
+      // // puts("[cS]");
       if(isadev(fdin)) {
 		keepFTime = 0;		/* Cannot keep file time of devices */
       	if(h->flags & BINARY)
@@ -385,6 +471,7 @@ static int copy(char *dst, char *pattern, struct CopySource *src
       }
 
       /* Now copy the file */
+      dbg[17] = 0x0F00 | 'H';  /* before copy section */
       rc = 1;
       {
       	FLAG sizeChanged = !(h->flags & ASCII) && singleFileCopy &&
@@ -399,6 +486,7 @@ static int copy(char *dst, char *pattern, struct CopySource *src
         						see RBIL DOS-40 */
         					/* Don't use chsize() as Turbo RTL fills with
         						'\0' bytes, which is not useful here */
+        	dbg[18] = 0x0F00 | 'I';  /* before lseek/truncate */
         	lseek(fdout, filelength(fdin), SEEK_SET);
         	if(truncate(fdout) != 0
         	 || lseek(fdout, 0, SEEK_SET) == -1) {
@@ -409,7 +497,9 @@ static int copy(char *dst, char *pattern, struct CopySource *src
 				 filelength(fdin)) );
 			}
 		}
-      
+
+        dbg[19] = 0x0F00 | 'J';  /* before BIGcopy */
+        // puts("[->BIG]");
         if(rc != 0)
 			switch(BIGcopy(fdout, fdin, h->flags & ASCII)) {
 			case 0: 
@@ -463,19 +553,32 @@ static int copy(char *dst, char *pattern, struct CopySource *src
 static int copyFiles(struct CopySource *h)
 { int differ, rc;
 
+  // puts("[L]");
   rc = 0;
 
 #define dst destFile
-  if((differ = samefile(h->fnam, dst)) < 0)
+  // puts("[M]");
+  if((differ = samefile(h->fnam, dst)) < 0) {
+    // puts("[N]");
     error_out_of_memory();
-  else if(!differ)
+  }
+  else if(!differ) {
+    // puts("[O]");
     rc = copy(dst, h->fnam, h, O_WRONLY|O_TRUNC|O_CREAT);
-  else if(h->app)
+    // puts("[P]");
+  }
+  else if(h->app) {
+    // puts("[Q]");
     rc = copy(dst, h->fnam, h->app, O_WRONLY|O_APPEND);
-  else
+    // puts("[R]");
+  }
+  else {
+    // puts("[S]");
     error_selfcopy(dst);
+  }
 #undef dst
 
+  // puts("[T]");
   return rc;
 }
 
@@ -543,23 +646,48 @@ int cmd_copy(char *rest)
   int argc, opts, argi;
   struct CopySource *h;
   char **argBuffer = 0;
+  /* Use row 0 for debug markers so they don't scroll off */
+  volatile unsigned short far *dbg = (unsigned short far *)0xF0000000UL;
+
+  /* Debug: simple puts to confirm cmd_copy is called */
+  // puts("[COPY-START]");
+
+  dbg[0] = 0x0F00 | '0';  /* Marker: entered cmd_copy */
 
   /* Initialize options */
   optA = optB = optV = optY = 0;
+  dbg[1] = 0x0F00 | '1';  /* Marker: options initialized */
+  // puts("[1]");
 
   /* read the parameters from env */
-  if ((argv = scanCmdline(p = getEnv("COPYCMD"), opt_copy, 0, &argc, &opts))
-   == 0) {
+  p = getEnv("COPYCMD");
+  dbg[2] = 0x0F00 | '2';  /* Marker: after getEnv */
+  // puts("[2]");
+
+  argv = scanCmdline(p, opt_copy, 0, &argc, &opts);
+  dbg[3] = 0x0F00 | '3';  /* Marker: after scanCmdline 1 */
+  // puts("[3]");
+
+  if (argv == 0) {
     free(p);
     return 1;
   }
   free(p);
+  dbg[4] = 0x0F00 | '4';  /* Marker: after free(p) */
+  // puts("[4]");
+
   freep(argv);    /* ignore any parameter from env var */
+  dbg[5] = 0x0F00 | '5';  /* Marker: after freep */
+  // puts("[5]");
 
   if((argv = scanCmdline(rest, opt_copy, 0, &argc, &opts)) == 0)
     return 1;
+  dbg[6] = 0x0F00 | '6';  /* Marker: after scanCmdline 2 */
+  // puts("[6]");
 
   initContext();
+  dbg[7] = 0x0F00 | '7';  /* Marker: after initContext */
+  // puts("[7]");
 
   /* Now parse the remaining arguments into the copy file
     structure */
@@ -596,6 +724,9 @@ int cmd_copy(char *rest)
     return 1;
   }
 
+  dbg[8] = 0x0F00 | '8';  /* Marker: after for loop */
+  // puts("[8]");
+
   if(!last) {   /* Nothing to do */
     error_nothing_to_do();
     killContext();
@@ -603,15 +734,23 @@ int cmd_copy(char *rest)
     return 1;
   }
 
+  dbg[9] = 0x0F00 | '9';  /* Marker: last is valid */
+  // puts("[9]");
   assert(head);
 
   /* Check whether the source items are files or directories */
   h = head;
   argc = 0;		/* argBuffer entries */
+  dbg[10] = 0x0F00 | 'A';  /* Marker: before do-while loop */
+  // puts("[A]");
   do {
 	struct CopySource *p = h;
+	dbg[11] = 0x0F00 | 'B';  /* Marker: in outer do loop */
+	// puts("[B]");
   	do {
   		char *s = strchr(p->fnam, '\0') - 1;
+  		dbg[12] = 0x0F00 | 'C';  /* Marker: before dfnstat */
+  		// puts("[C]");
   		if(*s == '/' || *s == '\\'		/* forcedly be directory */
   		 || 0 != (dfnstat(p->fnam) & DFN_DIRECTORY)) {
 			char **buf;
@@ -635,10 +774,14 @@ int cmd_copy(char *rest)
 				goto errRet;
 			}
   		}
+  		// puts("[D]");
   	} while(0 != (p = p->app));
+  	// puts("[E]");
   } while(0 != (h = h->nxt));
+  // puts("[F]");
 
   destFlags = last->flags;
+  // puts("[G]");
 	if(last != head) {
 		/* The last argument is to be the destination */
 		if(last->app) {	/* last argument is a + b syntax -> no dst! */
@@ -646,6 +789,7 @@ int cmd_copy(char *rest)
 			goto errRet;
 		}
 		destFile = last->fnam;
+		// puts("[H]");
 		h = head;         /* remove it from argument list */
 		while(h->nxt != last) {
 		  assert(h->nxt);
@@ -653,12 +797,14 @@ int cmd_copy(char *rest)
 		}
 		free(last);
 		(last = h)->nxt = 0;
+		// puts("[I]");
   } else {              /* Nay */
     destFile = ".\\*.*";
   }
 
 #define dst destFile
   /* If the destination specifies a drive, check that it is valid */
+  // puts("[J]");
   if (dst[0] && dst[1] == ':' && !is_valid_disk(toupper(dst[0]) - 'A')) {
     error_invalid_drive(toupper(dst[0]) - 'A');
     return 0;
@@ -666,8 +812,11 @@ int cmd_copy(char *rest)
 #undef dst
 
   /* Now copy the files */
+  dbg[13] = 0x0F00 | 'D';  /* Marker: before copyFiles */
+  // puts("[K]");
   h = head;
   while(copyFiles(h) && (h = h->nxt) != 0);
+  dbg[14] = 0x0F00 | 'E';  /* Marker: after copyFiles */
 
 errRet:
   killContext();

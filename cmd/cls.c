@@ -63,8 +63,17 @@ int cmd_cls (char * param) {
 		IREGS r;
 		
 		/* Get the current video mode */
-		
-		r.r_ax = 0x0f00;	/* Scroll window up // entire window */
+		/* Initialize all IREGS fields to avoid garbage causing crashes */
+		r.r_ax = 0x0f00;	/* Get video mode */
+		r.r_bx = 0;
+		r.r_cx = 0;
+		r.r_dx = 0;
+		r.r_bp = 0;
+		r.r_si = 0;
+		r.r_di = 0;
+		r.r_ds = 0;
+		r.r_es = 0;
+		r.r_flags = 0;
 		intrpt(0x10, &r);
 		mode = r.r_ax & 0x7f;
 		
@@ -90,10 +99,17 @@ int cmd_cls (char * param) {
 		}
 		
 		/* Now roll the screen */
+		/* Re-initialize for second call */
 		r.r_ax = 0x0600;	/* Scroll window up // entire window */
 		r.r_bx = attr;		/* Attribute to write */
 		r.r_cx = 0x0000;	/* Upper left */
 		r.r_dx = ((SCREEN_ROWS - 1) << 8) | (SCREEN_COLS - 1); /* Lower right */
+		r.r_bp = 0;
+		r.r_si = 0;
+		r.r_di = 0;
+		r.r_ds = 0;
+		r.r_es = 0;
+		r.r_flags = 0;
 		intrpt(0x10, &r);
 		goxy(1, 1);			/* home the cursor */
 	}

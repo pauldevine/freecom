@@ -66,8 +66,17 @@ DOSfree1:
 	DBG_ENTER("DOSfree", Suppl_farmem)
 	DBG_ARGUMENTS( ("segm=%04x", segm) )
 
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0x4900;
+	r.r_bx = 0;
+	r.r_cx = 0;
+	r.r_dx = 0;
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_ds = 0;
 	r.r_es = segm;
+	r.r_flags = 0;
 	DBG_RETURN_BI(invokeDOS(aS(r)));
 }
 #endif

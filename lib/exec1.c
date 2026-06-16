@@ -68,7 +68,17 @@ void setErrorLevel(int rc)
 #ifndef DISP_EXITCODE
 		int exitReason;		/* else we use the global variable */
 #endif
+		/* Initialize all IREGS fields to avoid garbage causing crashes */
 		rp.r_ax = 0x4d00;           /* get return code */
+		rp.r_bx = 0;
+		rp.r_cx = 0;
+		rp.r_dx = 0;
+		rp.r_bp = 0;
+		rp.r_si = 0;
+		rp.r_di = 0;
+		rp.r_ds = 0;
+		rp.r_es = 0;
+		rp.r_flags = 0;
 		intrpt(0x21, &rp);
 		rc = rp.r_ax & 0xFF;
 		exitReason = (rp.r_ax >> 8) & 0xFF;

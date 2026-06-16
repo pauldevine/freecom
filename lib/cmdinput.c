@@ -44,10 +44,30 @@ static void my_setcursortype( unsigned short state )
    IREGS regs;
    int cur_mode;
 
+   /* Initialize all IREGS fields to avoid garbage causing crashes */
    regs.r_ax = 0x0F00;
+   regs.r_bx = 0;
+   regs.r_cx = 0;
+   regs.r_dx = 0;
+   regs.r_bp = 0;
+   regs.r_si = 0;
+   regs.r_di = 0;
+   regs.r_ds = 0;
+   regs.r_es = 0;
+   regs.r_flags = 0;
    intrpt( 0x10, &regs );
    cur_mode = regs.r_ax & 0xFF;
+
+   /* Re-initialize for second call */
    regs.r_ax = 0x0100;
+   regs.r_bx = 0;
+   regs.r_dx = 0;
+   regs.r_bp = 0;
+   regs.r_si = 0;
+   regs.r_di = 0;
+   regs.r_ds = 0;
+   regs.r_es = 0;
+   regs.r_flags = 0;
    /* ch == start line. cl == end line */
 
    switch (state)

@@ -79,8 +79,17 @@ int dfnstat(const char * const fnam)
 	 && (!fnam[2] || (fnam[2] == '\\' && !fnam[3]))) {
 	 	/* Root spec or drive letter only */
 	 	/* Probe if the drive is ready */
+	 	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	 	r.r_ax = 0x4409;
 	 	r.r_bx = toupper(*fnam) - 'A' + 1;
+	 	r.r_cx = 0;
+	 	r.r_dx = 0;
+	 	r.r_bp = 0;
+	 	r.r_si = 0;
+	 	r.r_di = 0;
+	 	r.r_ds = 0;
+	 	r.r_es = 0;
+	 	r.r_flags = 0;
         intrpt( 0x21, &r );
         if( r.r_flags & 1 ) {
 			eno_setOSerror(r.r_ax);
@@ -89,9 +98,17 @@ int dfnstat(const char * const fnam)
 		DBG_RETURN_X( DFN_DIRECTORY)
 	}
 
+	/* Initialize all IREGS fields to avoid garbage causing crashes */
 	r.r_ax = 0x4300;		/* get file attributes */
+	r.r_bx = 0;
+	r.r_cx = 0;
 	r.r_ds = FP_SEG(fnam);
 	r.r_dx = FP_OFF(fnam);
+	r.r_bp = 0;
+	r.r_si = 0;
+	r.r_di = 0;
+	r.r_es = 0;
+	r.r_flags = 0;
 	intrpt( 0x21, &r );
 	if( r.r_flags & 1 ) {
 		eno_setOSerror(r.r_ax);
