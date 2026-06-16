@@ -137,41 +137,7 @@ int stack_check(const char *commandline)
 #endif
 
 
-#ifdef VICTOR9000
-/* Victor 9000: Use direct INT 21h AH=02 - ia16-gcc libc fputs() is broken */
-static void dos_putchar(char c)
-{
-  __asm__ volatile(
-    "movb $0x02, %%ah\n\t"
-    "int $0x21"
-    : : "d"((unsigned char)c)
-    : "ax"
-  );
-}
-
-static void dos_puts(const char *s)
-{
-  while (*s) {
-    dos_putchar(*s++);
-  }
-}
-
-static void startup_trace(const char *msg)
-{
-  dos_puts(TRACE_PREFIX);
-  dos_puts(msg);
-  dos_putchar('\r');
-  dos_putchar('\n');
-}
-#else
-static void startup_trace(const char *msg)
-{
-  fputs(TRACE_PREFIX, stdout);
-  fputs(msg, stdout);
-  fputs("\r\n", stdout);
-  fflush(stdout);
-}
-#endif
+/* startup_trace removed - was only used for debugging */
 
 #ifdef __GNUC__
 int dup(int fd)
@@ -624,12 +590,19 @@ void parsecommandline(char *s, int redirect)
 
   if (out)                      /* Final output to here */
   {
+    volatile unsigned short far *scr = (unsigned short far *)0xF0000000UL;
+    int fd;
+    scr[80*23] = 0x0E00 | 'R'; scr[80*23+1] = 0x0E00 | '1';  /* R1 = before close */
     dos_close(1);
-    if (1 != devopen(out, of_attrib))
+    scr[80*23+2] = 0x0E00 | 'R'; scr[80*23+3] = 0x0E00 | '2';  /* R2 = before devopen */
+    fd = devopen(out, of_attrib);
+    scr[80*23+4] = 0x0E00 | 'R'; scr[80*23+5] = 0x0E00 | '3';  /* R3 = after devopen */
+    if (1 != fd)
     {
 		error_redirect_to_file(out);
       goto abort;
     }
+    scr[80*23+6] = 0x0E00 | 'R'; scr[80*23+7] = 0x0E00 | '4';  /* R4 = after check */
   }
   else if (oldoutfd != -1)      /* Restore original stdout */
   {
@@ -804,9 +777,10 @@ int expandEnvVars(char *ip, char * const line)
 int process_input(int xflag, char *commandline)
 {
     /* Dimensionate parsedline that no sprintf() can overflow the buffer
+     * Victor 9000: Use heap instead of stack to avoid stack overflow
      */
-  char parsedline[MAX_INTERNAL_COMMAND_SIZE + sizeof(errorlevel) * 8]
-    , *readline;
+  char *parsedline;
+  char *readline;
 #if 0
 /* Return the maximum pointer into parsedline to add 'numbytes' bytes */
 #define parsedMax(numbytes)   \
@@ -822,14 +796,22 @@ int process_input(int xflag, char *commandline)
   int echothisline;
   int tracethisline;
 
+  /* Allocate parsedline on heap instead of stack for Victor 9000 */
+  parsedline = malloc(MAX_INTERNAL_COMMAND_SIZE + sizeof(errorlevel) * 8);
+  if (!parsedline) {
+    error_out_of_memory();
+    return 1;
+  }
   do
   {
 #ifdef FEATURE_LONG_FILENAMES
+    {
     char *lfn = getEnv("LFN");
     if( lfn && toupper( *lfn ) == 'N' )
          __supportlfns = 0;
     else __supportlfns = 1;
     free(lfn);
+    }
 #endif
   	interactive_command = 0;		/* not directly entered by user */
   	echothisline = tracethisline = 0;
@@ -840,6 +822,7 @@ int process_input(int xflag, char *commandline)
     if ((readline = malloc(MAX_INTERNAL_COMMAND_SIZE + 1)) == 0)
     {
       error_out_of_memory();
+      free(parsedline);
       return 1;
     }
 
@@ -847,11 +830,17 @@ int process_input(int xflag, char *commandline)
                       MAX_INTERNAL_COMMAND_SIZE)))
       { /* if no batch input then... */
       int attr;
+      attr = fdattr(0);
       if (xflag   /* must not go interactive */
-       || ((attr = fdattr(0)) & 0x84) == 0x84  /* input is NUL device */
+       || (attr & 0x84) == 0x84  /* input is NUL device */
        || (attr & 0xc0) == 0x80) /* no further input */
       {
         free(readline);
+        /* NOTE: do NOT free(parsedline) here. parsedline is allocated once
+           before the loop and freed once after the loop (see end of
+           process_input). Freeing it here too double-freed it whenever this
+           break was taken (notably AUTOEXEC.BAT at EOF, xflag=1), which aborts
+           under newlib/GNUC with "_free_r: possible double free". */
         break;
       }
 
@@ -940,6 +929,7 @@ int process_input(int xflag, char *commandline)
   }
   while (!canexit || !exitflag);
 
+  free(parsedline);
   return 0;
 }
 
@@ -996,20 +986,11 @@ int main(void)
 
   stack_check_init();
 
-  startup_trace("main entry");
-
   if(setjmp(jmp_beginning) == 0) {
-    startup_trace("calling initialize()");
     init_result = initialize();
-    printf(TRACE_PREFIX "initialize() returned %d\r\n", init_result);
-    fflush(stdout);
-
     if(init_result == E_None) {
-      startup_trace("entering process_input()");
       process_input(0, 0);
     }
-  } else {
-    startup_trace("returned via longjmp() to main");
   }
 
   if(!canexit)
